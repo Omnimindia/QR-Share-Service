@@ -226,19 +226,49 @@ function generateQRCodeImage(element, data) {
     // Clear any existing QR code
     element.innerHTML = '';
     
-    // Generate the QR code
-    QRCode.toCanvas(element, data, {
-        width: 200,
-        margin: 1,
-        color: {
-            dark: '#000000',
-            light: '#ffffff'
+    try {
+        // Try using toCanvas method first
+        QRCode.toCanvas(element, data, {
+            width: 200,
+            margin: 1,
+            color: {
+                dark: '#000000',
+                light: '#ffffff'
+            }
+        }, function(error) {
+            if (error) {
+                console.error('Error generating QR code with canvas:', error);
+                // Fallback to toDataURL method
+                QRCode.toDataURL(data, { width: 200, margin: 1 }, function(err, url) {
+                    if (err) {
+                        console.error('Error generating QR code with dataURL:', err);
+                        return;
+                    }
+                    
+                    var img = document.createElement('img');
+                    img.src = url;
+                    element.appendChild(img);
+                });
+            }
+        });
+    } catch (e) {
+        console.error('QRCode generation failed:', e);
+        
+        // Try alternative method
+        try {
+            new QRCode(element, {
+                text: data,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } catch (e2) {
+            console.error('Alternative QR code generation failed:', e2);
+            element.innerHTML = '<p>Failed to generate QR code. Please try again.</p>';
         }
-    }, function(error) {
-        if (error) {
-            console.error('Error generating QR code:', error);
-        }
-    });
+    }
 }
 
 // View content by ID from the view tab
