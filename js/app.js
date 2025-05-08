@@ -122,8 +122,16 @@ function generateQRCode(contentType) {
             data: content
         }, expirationDays);
         
-        // Generate the share URL
-        const shareUrl = getShareUrl(contentId);
+        // Generate the share URL with the content encoded for short text
+        // This ensures it works even if localStorage fails
+        const encodedContent = encodeURIComponent(content);
+        let shareUrl = getShareUrl(contentId);
+        
+        // Only append the content for text that's not too long
+        if (content.length <= 500) {
+            shareUrl += `&text=${encodedContent}`;
+        }
+        
         shareUrlInput.value = shareUrl;
         
         // Generate the QR code
@@ -169,8 +177,14 @@ function generateQRCode(contentType) {
                 data: videoUrl
             }, expirationDays);
             
-            // Generate the share URL
-            const shareUrl = getShareUrl(contentId);
+            // Generate the share URL - for video URLs, we can include it in the URL parameters
+            let shareUrl = getShareUrl(contentId);
+            
+            // For YouTube/Vimeo URLs, we can include them directly in the URL
+            if (isYouTubeUrl(videoUrl) || isVimeoUrl(videoUrl)) {
+                shareUrl += `&videoUrl=${encodeURIComponent(videoUrl)}`;
+            }
+            
             shareUrlInput.value = shareUrl;
             
             // Generate the QR code
@@ -321,8 +335,38 @@ function showSharedContent(contentId) {
     const viewContainer = document.getElementById('view-container');
     viewContainer.classList.remove('hidden');
     
-    // Try to get the content from localStorage
-    const content = getContent(contentId);
+    // Check URL parameters for direct content
+    const urlParams = new URLSearchParams(window.location.search);
+    const textContent = urlParams.get('text');
+    const videoUrl = urlParams.get('videoUrl');
+    
+    // Try to get the content from localStorage first
+    let content = getContent(contentId);
+    
+    // If we don't have content from localStorage but have text in URL params
+    if (!content && textContent) {
+        // Create a synthetic content object
+        content = {
+            id: contentId,
+            type: 'text',
+            data: decodeURIComponent(textContent),
+            created: new Date().toISOString(),
+            expires: null
+        };
+    }
+    
+    // If we don't have content but have video URL in params
+    if (!content && videoUrl) {
+        // Create a synthetic content object for video
+        content = {
+            id: contentId,
+            type: 'video',
+            source: 'url',
+            data: decodeURIComponent(videoUrl),
+            created: new Date().toISOString(),
+            expires: null
+        };
+    }
     
     if (content) {
         // Content exists, format and display based on content type
@@ -544,7 +588,13 @@ function saveContent(id, contentData, expirationDays) {
     }
     
     // Get existing content array or create a new one
-    let contentArray = JSON.parse(localStorage.getItem('qr-share-content') || '[]');
+    let contentArray = [];
+    try {
+        contentArray = JSON.parse(localStorage.getItem('qr-share-content') || '[]');
+    } catch (e) {
+        console.error('Error parsing localStorage data:', e);
+        contentArray = [];
+    }
     
     // Add the new content
     contentArray.push(contentObj);
@@ -555,17 +605,65 @@ function saveContent(id, contentData, expirationDays) {
         return new Date(item.expires) > now;
     });
     
-    // Save back to localStorage
-    localStorage.setItem('qr-share-content', JSON.stringify(contentArray));
+    // Save back to localStorage (with error handling)
+    try {
+        localStorage.setItem('qr-share-content', JSON.stringify(contentArray));
+        
+        // Debug: Also encode the content directly in the URL for testing
+        if (contentData.type === 'text') {
+            // For text, we can encode it directly in the URL as a fallback
+            localStorage.setItem(`qr-share-item-${id}`, JSON.stringify(contentObj));
+        }
+    } catch (e) {
+        console.error('Error saving to localStorage:', e);
+        alert('There was an error saving your content. Please try again or use a different browser.');
+    }
 }
 
 // Get content from localStorage
 function getContent(id) {
-    const contentArray = JSON.parse(localStorage.getItem('qr-share-content') || '[]');
+    // Try to get from the array first
+    let contentArray = [];
+    try {
+        contentArray = JSON.parse(localStorage.getItem('qr-share-content') || '[]');
+    } catch (e) {
+        console.error('Error parsing localStorage data:', e);
+        contentArray = [];
+    }
+    
     const now = new Date();
     
     // Find the content by ID
-    const content = contentArray.find(item => item.id === id);
+    let content = contentArray.find(item => item.id === id);
+    
+    // If not found in the array, try the direct item
+    if (!content) {
+        try {
+            const directItem = localStorage.getItem(`qr-share-item-${id}`);
+            if (directItem) {
+                content = JSON.parse(directItem);
+            }
+        } catch (e) {
+            console.error('Error getting direct item:', e);
+        }
+    }
+    
+    // Check URL parameters for encoded content (fallback for text content)
+    if (!content) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const textContent = urlParams.get('text');
+        
+        if (textContent && id) {
+            // Create a synthetic content object from URL parameters
+            content = {
+                id: id,
+                type: 'text',
+                data: decodeURIComponent(textContent),
+                created: new Date().toISOString(),
+                expires: null
+            };
+        }
+    }
     
     // Check if it exists and hasn't expired
     if (content && (!content.expires || new Date(content.expires) > now)) {
@@ -577,7 +675,10 @@ function getContent(id) {
 
 // Get the share URL for a content ID
 function getShareUrl(id) {
-    return `${window.location.origin}${window.location.pathname}?id=${id}`;
+    // Get the base URL (domain and path)
+    const baseUrl = window.location.href.split('?')[0];
+    // Return the URL with the id parameter
+    return `${baseUrl}?id=${id}`;
 }
 
 // Format a date for display
