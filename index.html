@@ -115,7 +115,22 @@
                     
                     <button id="generate-video-btn" class="btn">Generate QR Code</button>
                     
-                    <!-- Reusing the same result div for video -->
+                    <!-- Result section for video tab -->
+                    <div id="video-result" class="hidden">
+                        <h3>Your QR Code is Ready!</h3>
+                        <div class="qr-container">
+                            <div id="video-qrcode"></div>
+                        </div>
+                        <p>Scan this QR code or share the link below:</p>
+                        <div class="share-link">
+                            <input type="text" id="video-share-url" readonly>
+                            <button id="video-copy-btn" class="btn-small">Copy</button>
+                        </div>
+                        <div class="buttons">
+                            <button id="video-download-btn" class="btn">Download QR Code</button>
+                            <button id="video-create-new-btn" class="btn btn-secondary">Create Another</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- View Tab -->

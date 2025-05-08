@@ -70,33 +70,40 @@ function initApp() {
     const viewBtn = document.getElementById('view-btn');
     viewBtn.addEventListener('click', viewContentById);
     
-    // Copy link button
+    // Copy link button - text tab
     const copyBtn = document.getElementById('copy-btn');
-    copyBtn.addEventListener('click', copyShareLink);
+    copyBtn.addEventListener('click', () => copyShareLink('share-url', 'copy-btn'));
     
-    // Download QR code button
+    // Copy link button - video tab
+    const videoCopyBtn = document.getElementById('video-copy-btn');
+    videoCopyBtn.addEventListener('click', () => copyShareLink('video-share-url', 'video-copy-btn'));
+    
+    // Download QR code button - text tab
     const downloadBtn = document.getElementById('download-btn');
-    downloadBtn.addEventListener('click', downloadQRCode);
+    downloadBtn.addEventListener('click', () => downloadQRCode('qrcode'));
     
-    // Create new button
+    // Download QR code button - video tab
+    const videoDownloadBtn = document.getElementById('video-download-btn');
+    videoDownloadBtn.addEventListener('click', () => downloadQRCode('video-qrcode'));
+    
+    // Create new button - text tab
     const createNewBtn = document.getElementById('create-new-btn');
-    createNewBtn.addEventListener('click', resetForm);
+    createNewBtn.addEventListener('click', () => resetForm('text'));
+    
+    // Create new button - video tab
+    const videoCreateNewBtn = document.getElementById('video-create-new-btn');
+    videoCreateNewBtn.addEventListener('click', () => resetForm('video'));
 }
 
 // Generate a QR code for the entered content
 function generateQRCode(contentType) {
-    // Get common elements
-    const resultDiv = document.getElementById('result');
-    const qrcodeDiv = document.getElementById('qrcode');
-    const shareUrlInput = document.getElementById('share-url');
-    
-    // Generate a unique ID for this content
-    const contentId = generateUniqueId();
-    
     if (contentType === 'text') {
         // Handle text content
         const contentInput = document.getElementById('content-input');
         const expirationSelect = document.getElementById('expiration-text');
+        const resultDiv = document.getElementById('result');
+        const qrcodeDiv = document.getElementById('qrcode');
+        const shareUrlInput = document.getElementById('share-url');
         
         const content = contentInput.value.trim();
         const expirationDays = parseInt(expirationSelect.value);
@@ -106,16 +113,36 @@ function generateQRCode(contentType) {
             return;
         }
         
+        // Generate a unique ID for this content
+        const contentId = generateUniqueId();
+        
         // Store the content in localStorage
         saveContent(contentId, {
             type: 'text',
             data: content
         }, expirationDays);
+        
+        // Generate the share URL
+        const shareUrl = getShareUrl(contentId);
+        shareUrlInput.value = shareUrl;
+        
+        // Generate the QR code
+        generateQRCodeImage(qrcodeDiv, shareUrl);
+        
+        // Show the result
+        resultDiv.classList.remove('hidden');
     } else if (contentType === 'video') {
         // Handle video content
         const videoSource = document.querySelector('input[name="video-source"]:checked').value;
         const expirationSelect = document.getElementById('expiration-video');
+        const resultDiv = document.getElementById('video-result');
+        const qrcodeDiv = document.getElementById('video-qrcode');
+        const shareUrlInput = document.getElementById('video-share-url');
+        
         const expirationDays = parseInt(expirationSelect.value);
+        
+        // Generate a unique ID for this content
+        const contentId = generateUniqueId();
         
         if (videoSource === 'url') {
             // Process video URL
@@ -141,6 +168,16 @@ function generateQRCode(contentType) {
                 source: 'url',
                 data: videoUrl
             }, expirationDays);
+            
+            // Generate the share URL
+            const shareUrl = getShareUrl(contentId);
+            shareUrlInput.value = shareUrl;
+            
+            // Generate the QR code
+            generateQRCodeImage(qrcodeDiv, shareUrl);
+            
+            // Show the result
+            resultDiv.classList.remove('hidden');
         } else {
             // Process uploaded video file
             const fileInput = document.getElementById('video-file-input');
@@ -204,21 +241,8 @@ function generateQRCode(contentType) {
             
             // Start reading the file
             reader.readAsDataURL(file);
-            
-            // Exit early as the async file reading will handle the rest
-            return;
         }
     }
-    
-    // Generate the share URL
-    const shareUrl = getShareUrl(contentId);
-    shareUrlInput.value = shareUrl;
-    
-    // Generate the QR code
-    generateQRCodeImage(qrcodeDiv, shareUrl);
-    
-    // Show the result
-    resultDiv.classList.remove('hidden');
 }
 
 // Generate QR code image
@@ -226,47 +250,50 @@ function generateQRCodeImage(element, data) {
     // Clear any existing QR code
     element.innerHTML = '';
     
+    // Method 1: Use toCanvas (preferred method)
     try {
-        // Try using toCanvas method first
-        QRCode.toCanvas(element, data, {
-            width: 200,
-            margin: 1,
-            color: {
-                dark: '#000000',
-                light: '#ffffff'
-            }
-        }, function(error) {
+        QRCode.toCanvas(element, data, { width: 200 }, function(error) {
             if (error) {
-                console.error('Error generating QR code with canvas:', error);
-                // Fallback to toDataURL method
-                QRCode.toDataURL(data, { width: 200, margin: 1 }, function(err, url) {
-                    if (err) {
-                        console.error('Error generating QR code with dataURL:', err);
-                        return;
-                    }
-                    
-                    var img = document.createElement('img');
-                    img.src = url;
-                    element.appendChild(img);
-                });
+                console.error('Error with toCanvas method:', error);
+                tryAlternativeMethods(data);
             }
         });
-    } catch (e) {
-        console.error('QRCode generation failed:', e);
-        
-        // Try alternative method
+    } catch(e) {
+        console.error('Exception with toCanvas method:', e);
+        tryAlternativeMethods(data);
+    }
+    
+    function tryAlternativeMethods(text) {
+        // Method 2: Use toDataURL
+        try {
+            QRCode.toDataURL(text, { width: 200 }, function(err, url) {
+                if (err) {
+                    console.error('Error with toDataURL method:', err);
+                    useConstructorMethod(text);
+                    return;
+                }
+                
+                const img = document.createElement('img');
+                img.src = url;
+                element.appendChild(img);
+            });
+        } catch(e) {
+            console.error('Exception with toDataURL method:', e);
+            useConstructorMethod(text);
+        }
+    }
+    
+    function useConstructorMethod(text) {
+        // Method 3: Use QRCode constructor
         try {
             new QRCode(element, {
-                text: data,
+                text: text,
                 width: 200,
-                height: 200,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                height: 200
             });
-        } catch (e2) {
-            console.error('Alternative QR code generation failed:', e2);
-            element.innerHTML = '<p>Failed to generate QR code. Please try again.</p>';
+        } catch(e) {
+            console.error('All QR code generation methods failed:', e);
+            element.innerHTML = '<p>Failed to generate QR code. Please try a different browser.</p>';
         }
     }
 }
@@ -439,12 +466,12 @@ function getVimeoVideoId(url) {
 }
 
 // Copy the share link to clipboard
-function copyShareLink() {
-    const shareUrlInput = document.getElementById('share-url');
+function copyShareLink(inputId, buttonId) {
+    const shareUrlInput = document.getElementById(inputId);
     shareUrlInput.select();
     document.execCommand('copy');
     
-    const copyBtn = document.getElementById('copy-btn');
+    const copyBtn = document.getElementById(buttonId);
     copyBtn.textContent = 'Copied!';
     
     setTimeout(() => {
@@ -453,22 +480,38 @@ function copyShareLink() {
 }
 
 // Download the QR code as an image
-function downloadQRCode() {
-    const qrcodeCanvas = document.querySelector('#qrcode canvas');
-    if (!qrcodeCanvas) return;
+function downloadQRCode(elementId) {
+    const qrcodeElement = document.getElementById(elementId);
+    const qrcodeCanvas = qrcodeElement.querySelector('canvas');
+    const qrcodeImg = qrcodeElement.querySelector('img');
     
-    const link = document.createElement('a');
-    link.download = 'qr-share.png';
-    link.href = qrcodeCanvas.toDataURL('image/png');
-    link.click();
+    if (qrcodeCanvas) {
+        // Canvas is available, use it
+        const link = document.createElement('a');
+        link.download = 'qr-share.png';
+        link.href = qrcodeCanvas.toDataURL('image/png');
+        link.click();
+    } else if (qrcodeImg) {
+        // Use the image if canvas is not available
+        const link = document.createElement('a');
+        link.download = 'qr-share.png';
+        link.href = qrcodeImg.src;
+        link.click();
+    } else {
+        alert('Could not download QR code. Please try again in a different browser.');
+    }
 }
 
 // Reset the form to create a new QR code
-function resetForm() {
-    document.getElementById('content-input').value = '';
-    document.getElementById('video-file-input').value = '';
-    document.getElementById('video-url-input').value = '';
-    document.getElementById('result').classList.add('hidden');
+function resetForm(type) {
+    if (type === 'text') {
+        document.getElementById('content-input').value = '';
+        document.getElementById('result').classList.add('hidden');
+    } else if (type === 'video') {
+        document.getElementById('video-file-input').value = '';
+        document.getElementById('video-url-input').value = '';
+        document.getElementById('video-result').classList.add('hidden');
+    }
 }
 
 // Generate a unique ID for content
