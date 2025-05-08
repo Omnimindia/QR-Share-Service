@@ -1,3 +1,223 @@
+/* Base styles */
+:root {
+    --primary-color: #3498db;
+    --primary-dark: #2980b9;
+    --secondary-color: #2ecc71;
+    --secondary-dark: #27ae60;
+    --background-color: #f8f9fa;
+    --card-color: #ffffff;
+    --text-color: #333333;
+    --border-color: #e0e0e0;
+    --light-text: #777777;
+    --success-color: #2ecc71;
+    --error-color: #e74c3c;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Header styles */
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 30px 0;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 5px;
+}
+
+.tagline {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+/* Card and form styles */
+.card {
+    background: var(--card-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 30px;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 15px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.tab-btn.active {
+    background-color: var(--card-color);
+    border-bottom: 3px solid var(--primary-color);
+    font-weight: 600;
+}
+
+.tab-content {
+    padding: 20px;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+textarea, input, select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+.btn {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: var(--primary-dark);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--secondary-dark);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+}
+
+.buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+/* QR code and result styles */
+.hidden {
+    display: none;
+}
+
+#result {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.qr-container {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#qrcode {
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+}
+
+.share-link {
+    display: flex;
+    margin: 15px 0;
+}
+
+.share-link input {
+    flex: 1;
+    border-radius: 4px 0 0 4px;
+}
+
+.share-link button {
+    border-radius: 0 4px 4px 0;
+}
+
+/* Shared content view */
+#content-display, #view-container {
+    margin-top: 25px;
+}
+
+pre {
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border: 1px solid var(--border-color);
+    margin: 15px 0;
+}
+
 .content-meta, .content-info {
     color: var(--light-text);
     font-size: 0.9rem;
@@ -69,4 +289,32 @@
     background-color: #000;
     border-radius: 8px;
     margin: 20px 0;
+}
+
+/* Footer styles */
+footer {
+    text-align: center;
+    padding: 20px 0;
+    margin-top: 30px;
+    border-top: 1px solid var(--border-color);
+    color: var(--light-text);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    header {
+        padding: 20px 0;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    .buttons {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
 }
