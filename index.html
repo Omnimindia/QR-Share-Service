@@ -51,6 +51,22 @@
                     </div>
                     
                     <button id="generate-text-btn" class="btn">Generate QR Code</button>
+                    
+                    <div id="result" class="hidden">
+                        <h3>Your QR Code is Ready!</h3>
+                        <div class="qr-container">
+                            <div id="qrcode"></div>
+                        </div>
+                        <p>Scan this QR code or share the link below:</p>
+                        <div class="share-link">
+                            <input type="text" id="share-url" readonly>
+                            <button id="copy-btn" class="btn-small">Copy</button>
+                        </div>
+                        <div class="buttons">
+                            <button id="download-btn" class="btn">Download QR Code</button>
+                            <button id="create-new-btn" class="btn btn-secondary">Create Another</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Video Sharing Tab -->
@@ -99,21 +115,7 @@
                     
                     <button id="generate-video-btn" class="btn">Generate QR Code</button>
                     
-                    <div id="result" class="hidden">
-                        <h3>Your QR Code is Ready!</h3>
-                        <div class="qr-container">
-                            <div id="qrcode"></div>
-                        </div>
-                        <p>Scan this QR code or share the link below:</p>
-                        <div class="share-link">
-                            <input type="text" id="share-url" readonly>
-                            <button id="copy-btn" class="btn-small">Copy</button>
-                        </div>
-                        <div class="buttons">
-                            <button id="download-btn" class="btn">Download QR Code</button>
-                            <button id="create-new-btn" class="btn btn-secondary">Create Another</button>
-                        </div>
-                    </div>
+                    <!-- Reusing the same result div for video -->
                 </div>
                 
                 <!-- View Tab -->
