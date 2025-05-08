@@ -70,29 +70,41 @@ function initApp() {
     const viewBtn = document.getElementById('view-btn');
     viewBtn.addEventListener('click', viewContentById);
     
-    // Copy link button - text tab
+    // Copy link button
     const copyBtn = document.getElementById('copy-btn');
-    copyBtn.addEventListener('click', () => copyShareLink('share-url', 'copy-btn'));
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => copyShareLink('share-url', 'copy-btn'));
+    }
     
     // Copy link button - video tab
     const videoCopyBtn = document.getElementById('video-copy-btn');
-    videoCopyBtn.addEventListener('click', () => copyShareLink('video-share-url', 'video-copy-btn'));
+    if (videoCopyBtn) {
+        videoCopyBtn.addEventListener('click', () => copyShareLink('video-share-url', 'video-copy-btn'));
+    }
     
-    // Download QR code button - text tab
+    // Download QR code button
     const downloadBtn = document.getElementById('download-btn');
-    downloadBtn.addEventListener('click', () => downloadQRCode('qrcode'));
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => downloadQRCode('qrcode'));
+    }
     
     // Download QR code button - video tab
     const videoDownloadBtn = document.getElementById('video-download-btn');
-    videoDownloadBtn.addEventListener('click', () => downloadQRCode('video-qrcode'));
+    if (videoDownloadBtn) {
+        videoDownloadBtn.addEventListener('click', () => downloadQRCode('video-qrcode'));
+    }
     
-    // Create new button - text tab
+    // Create new button
     const createNewBtn = document.getElementById('create-new-btn');
-    createNewBtn.addEventListener('click', () => resetForm('text'));
+    if (createNewBtn) {
+        createNewBtn.addEventListener('click', () => resetForm('text'));
+    }
     
     // Create new button - video tab
     const videoCreateNewBtn = document.getElementById('video-create-new-btn');
-    videoCreateNewBtn.addEventListener('click', () => resetForm('video'));
+    if (videoCreateNewBtn) {
+        videoCreateNewBtn.addEventListener('click', () => resetForm('video'));
+    }
 }
 
 // Generate a QR code for the entered content
@@ -106,32 +118,20 @@ function generateQRCode(contentType) {
         const shareUrlInput = document.getElementById('share-url');
         
         const content = contentInput.value.trim();
-        const expirationDays = parseInt(expirationSelect.value);
         
         if (!content) {
             alert('Please enter some content to share.');
             return;
         }
         
-        // Generate a unique ID for this content
+        // Generate the content ID
         const contentId = generateUniqueId();
         
-        // Store the content in localStorage
-        saveContent(contentId, {
-            type: 'text',
-            data: content
-        }, expirationDays);
+        // IMPORTANT: Encode the content directly in the URL
+        // This ensures it works even if localStorage isn't available
+        let shareUrl = `${getCurrentBaseUrl()}?id=${contentId}&content=${encodeURIComponent(content)}&type=text`;
         
-        // Generate the share URL with the content encoded for short text
-        // This ensures it works even if localStorage fails
-        const encodedContent = encodeURIComponent(content);
-        let shareUrl = getShareUrl(contentId);
-        
-        // Only append the content for text that's not too long
-        if (content.length <= 500) {
-            shareUrl += `&text=${encodedContent}`;
-        }
-        
+        // Show the share URL
         shareUrlInput.value = shareUrl;
         
         // Generate the QR code
@@ -142,14 +142,11 @@ function generateQRCode(contentType) {
     } else if (contentType === 'video') {
         // Handle video content
         const videoSource = document.querySelector('input[name="video-source"]:checked').value;
-        const expirationSelect = document.getElementById('expiration-video');
         const resultDiv = document.getElementById('video-result');
         const qrcodeDiv = document.getElementById('video-qrcode');
         const shareUrlInput = document.getElementById('video-share-url');
         
-        const expirationDays = parseInt(expirationSelect.value);
-        
-        // Generate a unique ID for this content
+        // Generate the content ID
         const contentId = generateUniqueId();
         
         if (videoSource === 'url') {
@@ -162,28 +159,15 @@ function generateQRCode(contentType) {
             }
             
             // Validate URL
-            let validVideoUrl;
             try {
-                validVideoUrl = new URL(videoUrl);
+                new URL(videoUrl);
             } catch (e) {
                 alert('Please enter a valid URL.');
                 return;
             }
             
-            // Store the video URL
-            saveContent(contentId, {
-                type: 'video',
-                source: 'url',
-                data: videoUrl
-            }, expirationDays);
-            
-            // Generate the share URL - for video URLs, we can include it in the URL parameters
-            let shareUrl = getShareUrl(contentId);
-            
-            // For YouTube/Vimeo URLs, we can include them directly in the URL
-            if (isYouTubeUrl(videoUrl) || isVimeoUrl(videoUrl)) {
-                shareUrl += `&videoUrl=${encodeURIComponent(videoUrl)}`;
-            }
+            // For YouTube/Vimeo URLs, we encode them directly in the URL
+            const shareUrl = `${getCurrentBaseUrl()}?id=${contentId}&videoUrl=${encodeURIComponent(videoUrl)}&type=video`;
             
             shareUrlInput.value = shareUrl;
             
@@ -193,7 +177,10 @@ function generateQRCode(contentType) {
             // Show the result
             resultDiv.classList.remove('hidden');
         } else {
-            // Process uploaded video file
+            // For file uploads, we'll need to use localStorage since files are too large for URLs
+            // But we'll inform the user this might not work across devices
+            alert('Note: Uploading video files requires storing data locally. For best results across devices, use a video URL instead.');
+            
             const fileInput = document.getElementById('video-file-input');
             
             if (!fileInput.files || fileInput.files.length === 0) {
@@ -203,13 +190,13 @@ function generateQRCode(contentType) {
             
             const file = fileInput.files[0];
             
-            // Check file size (limit to 10MB)
-            if (file.size > 10 * 1024 * 1024) {
-                alert('File size exceeds the 10MB limit. Please use a smaller file or provide a video URL instead.');
+            // Check file size (limit to 5MB for better compatibility)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size exceeds 5MB. For best results, please use a video URL instead.');
                 return;
             }
             
-            // Read the file as data URL
+            // Read the file
             const reader = new FileReader();
             
             // Show progress
@@ -229,34 +216,42 @@ function generateQRCode(contentType) {
                 // Hide progress
                 progressContainer.classList.add('hidden');
                 
-                // Store the video data
-                saveContent(contentId, {
-                    type: 'video',
-                    source: 'file',
-                    data: event.target.result,
-                    mimeType: file.type
-                }, expirationDays);
-                
-                // Generate the share URL
-                const shareUrl = getShareUrl(contentId);
-                shareUrlInput.value = shareUrl;
-                
-                // Generate the QR code
-                generateQRCodeImage(qrcodeDiv, shareUrl);
-                
-                // Show the result
-                resultDiv.classList.remove('hidden');
+                try {
+                    // Store the video data in localStorage
+                    localStorage.setItem(`qr-video-${contentId}`, event.target.result);
+                    
+                    // Create a share URL with the ID
+                    const shareUrl = `${getCurrentBaseUrl()}?id=${contentId}&type=video&source=file`;
+                    
+                    shareUrlInput.value = shareUrl;
+                    
+                    // Generate the QR code
+                    generateQRCodeImage(qrcodeDiv, shareUrl);
+                    
+                    // Show the result
+                    resultDiv.classList.remove('hidden');
+                    
+                    // Show warning
+                    alert('Video file stored locally. This QR code will only work on this device unless you share the URL directly.');
+                } catch (e) {
+                    alert('Error storing video: ' + e.message + '\nTry using a video URL instead for better compatibility.');
+                }
             };
             
             reader.onerror = () => {
                 progressContainer.classList.add('hidden');
-                alert('Error reading the file. Please try again.');
+                alert('Error reading the file. Please try again or use a video URL instead.');
             };
             
             // Start reading the file
             reader.readAsDataURL(file);
         }
     }
+}
+
+// Get the current base URL (without query parameters)
+function getCurrentBaseUrl() {
+    return window.location.href.split('?')[0];
 }
 
 // Generate QR code image
@@ -323,73 +318,80 @@ function viewContentById() {
     }
     
     // Redirect to the view page
-    window.location.href = getShareUrl(contentId);
+    window.location.href = `${getCurrentBaseUrl()}?id=${contentId}`;
 }
 
 // Show shared content on the view page
 function showSharedContent(contentId) {
     // Hide the main interface
-    document.querySelector('main').classList.add('hidden');
+    const mainElement = document.querySelector('main');
+    if (mainElement) {
+        mainElement.classList.add('hidden');
+    }
     
     // Show the view container
     const viewContainer = document.getElementById('view-container');
-    viewContainer.classList.remove('hidden');
-    
-    // Check URL parameters for direct content
-    const urlParams = new URLSearchParams(window.location.search);
-    const textContent = urlParams.get('text');
-    const videoUrl = urlParams.get('videoUrl');
-    
-    // Try to get the content from localStorage first
-    let content = getContent(contentId);
-    
-    // If we don't have content from localStorage but have text in URL params
-    if (!content && textContent) {
-        // Create a synthetic content object
-        content = {
-            id: contentId,
-            type: 'text',
-            data: decodeURIComponent(textContent),
-            created: new Date().toISOString(),
-            expires: null
-        };
+    if (viewContainer) {
+        viewContainer.classList.remove('hidden');
     }
     
-    // If we don't have content but have video URL in params
-    if (!content && videoUrl) {
-        // Create a synthetic content object for video
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const contentType = urlParams.get('type');
+    const textContent = urlParams.get('content');
+    const videoUrl = urlParams.get('videoUrl');
+    const videoSource = urlParams.get('source');
+    
+    let content = null;
+    
+    // Handle different content types
+    if (contentType === 'text' && textContent) {
+        // Text content is directly in the URL
         content = {
-            id: contentId,
-            type: 'video',
-            source: 'url',
-            data: decodeURIComponent(videoUrl),
-            created: new Date().toISOString(),
-            expires: null
+            type: 'text',
+            data: decodeURIComponent(textContent),
+            created: new Date().toISOString()
         };
+    } else if (contentType === 'video') {
+        if (videoUrl) {
+            // Video URL is in the parameters
+            content = {
+                type: 'video',
+                source: 'url',
+                data: decodeURIComponent(videoUrl),
+                created: new Date().toISOString()
+            };
+        } else if (videoSource === 'file') {
+            // Try to get video file from localStorage
+            try {
+                const videoData = localStorage.getItem(`qr-video-${contentId}`);
+                if (videoData) {
+                    content = {
+                        type: 'video',
+                        source: 'file',
+                        data: videoData,
+                        created: new Date().toISOString()
+                    };
+                }
+            } catch (e) {
+                console.error('Error getting video from localStorage:', e);
+            }
+        }
     }
     
     if (content) {
-        // Content exists, format and display based on content type
+        // Content exists, display it
         if (content.type === 'text') {
             displayTextContent(content);
         } else if (content.type === 'video') {
             displayVideoContent(content);
         }
         
-        // Format and display the share date
-        const shareDate = new Date(content.created);
-        document.getElementById('share-date').textContent = formatDate(shareDate);
-        
-        // Display expiration info
-        const expiryInfo = document.getElementById('expiry-info');
-        if (content.expires) {
-            const expiryDate = new Date(content.expires);
-            expiryInfo.textContent = `Expires on ${formatDate(expiryDate)}`;
-        } else {
-            expiryInfo.textContent = 'Never expires';
-        }
+        // Show the date
+        document.getElementById('share-date').textContent = formatDate(new Date(content.created));
+        document.getElementById('expiry-info').textContent = '';
     } else {
-        // Content not found or expired
+        // Content not found
         displayNotFoundMessage();
     }
 }
@@ -397,80 +399,95 @@ function showSharedContent(contentId) {
 // Display text content
 function displayTextContent(content) {
     const textContainer = document.getElementById('text-content-container');
+    const videoContainer = document.getElementById('video-content-container');
     const sharedContent = document.getElementById('shared-content');
     
-    // Show text container, hide video container
-    textContainer.classList.remove('hidden');
-    document.getElementById('video-content-container').classList.add('hidden');
-    
-    // Display the text content
-    sharedContent.textContent = content.data;
+    if (textContainer && videoContainer && sharedContent) {
+        // Show text container, hide video container
+        textContainer.classList.remove('hidden');
+        videoContainer.classList.add('hidden');
+        
+        // Display the text content
+        sharedContent.textContent = content.data;
+    }
 }
 
 // Display video content
 function displayVideoContent(content) {
+    const textContainer = document.getElementById('text-content-container');
     const videoContainer = document.getElementById('video-content-container');
     const embedContainer = document.getElementById('video-embed-container');
     const playerContainer = document.getElementById('video-player-container');
     
-    // Show video container, hide text container
-    videoContainer.classList.remove('hidden');
-    document.getElementById('text-content-container').classList.add('hidden');
-    
-    if (content.source === 'url') {
-        // Handle video URL
-        const videoUrl = content.data;
+    if (textContainer && videoContainer && embedContainer && playerContainer) {
+        // Show video container, hide text container
+        videoContainer.classList.remove('hidden');
+        textContainer.classList.add('hidden');
         
-        // Check if it's a YouTube or Vimeo URL
-        if (isYouTubeUrl(videoUrl)) {
-            // YouTube embed
-            const videoId = getYouTubeVideoId(videoUrl);
-            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        if (content.source === 'url') {
+            // Handle video URL
+            const videoUrl = content.data;
             
-            const iframe = document.getElementById('video-embed');
-            iframe.src = embedUrl;
-            
-            embedContainer.classList.remove('hidden');
-            playerContainer.classList.add('hidden');
-        } else if (isVimeoUrl(videoUrl)) {
-            // Vimeo embed
-            const videoId = getVimeoVideoId(videoUrl);
-            const embedUrl = `https://player.vimeo.com/video/${videoId}`;
-            
-            const iframe = document.getElementById('video-embed');
-            iframe.src = embedUrl;
-            
-            embedContainer.classList.remove('hidden');
-            playerContainer.classList.add('hidden');
+            // Check if it's a YouTube or Vimeo URL
+            if (isYouTubeUrl(videoUrl)) {
+                // YouTube embed
+                const videoId = getYouTubeVideoId(videoUrl);
+                const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                
+                const iframe = document.getElementById('video-embed');
+                iframe.src = embedUrl;
+                
+                embedContainer.classList.remove('hidden');
+                playerContainer.classList.add('hidden');
+            } else if (isVimeoUrl(videoUrl)) {
+                // Vimeo embed
+                const videoId = getVimeoVideoId(videoUrl);
+                const embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                
+                const iframe = document.getElementById('video-embed');
+                iframe.src = embedUrl;
+                
+                embedContainer.classList.remove('hidden');
+                playerContainer.classList.add('hidden');
+            } else {
+                // Direct video URL
+                const videoPlayer = document.getElementById('video-player');
+                videoPlayer.src = videoUrl;
+                
+                embedContainer.classList.add('hidden');
+                playerContainer.classList.remove('hidden');
+            }
         } else {
-            // Direct video URL
+            // Handle data URL for uploaded video
+            const videoData = content.data;
             const videoPlayer = document.getElementById('video-player');
-            videoPlayer.src = videoUrl;
+            videoPlayer.src = videoData;
             
             embedContainer.classList.add('hidden');
             playerContainer.classList.remove('hidden');
         }
-    } else {
-        // Handle data URL for uploaded video
-        const videoData = content.data;
-        const videoPlayer = document.getElementById('video-player');
-        videoPlayer.src = videoData;
-        
-        embedContainer.classList.add('hidden');
-        playerContainer.classList.remove('hidden');
     }
 }
 
 // Display not found message
 function displayNotFoundMessage() {
-    // Show text container, hide video container
-    document.getElementById('text-content-container').classList.remove('hidden');
-    document.getElementById('video-content-container').classList.add('hidden');
+    const textContainer = document.getElementById('text-content-container');
+    const videoContainer = document.getElementById('video-content-container');
+    const sharedContent = document.getElementById('shared-content');
+    const shareDate = document.getElementById('share-date');
+    const expiryInfo = document.getElementById('expiry-info');
     
-    // Display error message
-    document.getElementById('shared-content').textContent = 'This content has expired or does not exist.';
-    document.getElementById('share-date').textContent = '';
-    document.getElementById('expiry-info').textContent = '';
+    if (textContainer && videoContainer && sharedContent) {
+        // Show text container, hide video container
+        textContainer.classList.remove('hidden');
+        videoContainer.classList.add('hidden');
+        
+        // Display error message
+        sharedContent.textContent = 'This content has expired or does not exist.';
+        
+        if (shareDate) shareDate.textContent = '';
+        if (expiryInfo) expiryInfo.textContent = '';
+    }
 }
 
 // Check if URL is from YouTube
@@ -549,136 +566,25 @@ function downloadQRCode(elementId) {
 // Reset the form to create a new QR code
 function resetForm(type) {
     if (type === 'text') {
-        document.getElementById('content-input').value = '';
-        document.getElementById('result').classList.add('hidden');
+        const contentInput = document.getElementById('content-input');
+        const resultDiv = document.getElementById('result');
+        
+        if (contentInput) contentInput.value = '';
+        if (resultDiv) resultDiv.classList.add('hidden');
     } else if (type === 'video') {
-        document.getElementById('video-file-input').value = '';
-        document.getElementById('video-url-input').value = '';
-        document.getElementById('video-result').classList.add('hidden');
+        const fileInput = document.getElementById('video-file-input');
+        const urlInput = document.getElementById('video-url-input');
+        const resultDiv = document.getElementById('video-result');
+        
+        if (fileInput) fileInput.value = '';
+        if (urlInput) urlInput.value = '';
+        if (resultDiv) resultDiv.classList.add('hidden');
     }
 }
 
 // Generate a unique ID for content
 function generateUniqueId() {
-    // Generate a random string
-    const randomStr = Math.random().toString(36).substring(2, 10) + 
-                      Date.now().toString(36);
-    
-    // Create a hash using CryptoJS
-    return CryptoJS.SHA256(randomStr).toString(CryptoJS.enc.Hex).substring(0, 10);
-}
-
-// Save content to localStorage
-function saveContent(id, contentData, expirationDays) {
-    const now = new Date();
-    const contentObj = {
-        id: id,
-        type: contentData.type,
-        data: contentData.data,
-        created: now.toISOString(),
-        expires: expirationDays > 0 ? new Date(now.getTime() + expirationDays * 24 * 60 * 60 * 1000).toISOString() : null
-    };
-    
-    // Add additional properties based on content type
-    if (contentData.type === 'video') {
-        contentObj.source = contentData.source;
-        if (contentData.mimeType) {
-            contentObj.mimeType = contentData.mimeType;
-        }
-    }
-    
-    // Get existing content array or create a new one
-    let contentArray = [];
-    try {
-        contentArray = JSON.parse(localStorage.getItem('qr-share-content') || '[]');
-    } catch (e) {
-        console.error('Error parsing localStorage data:', e);
-        contentArray = [];
-    }
-    
-    // Add the new content
-    contentArray.push(contentObj);
-    
-    // Clean up expired content
-    contentArray = contentArray.filter(item => {
-        if (!item.expires) return true;
-        return new Date(item.expires) > now;
-    });
-    
-    // Save back to localStorage (with error handling)
-    try {
-        localStorage.setItem('qr-share-content', JSON.stringify(contentArray));
-        
-        // Debug: Also encode the content directly in the URL for testing
-        if (contentData.type === 'text') {
-            // For text, we can encode it directly in the URL as a fallback
-            localStorage.setItem(`qr-share-item-${id}`, JSON.stringify(contentObj));
-        }
-    } catch (e) {
-        console.error('Error saving to localStorage:', e);
-        alert('There was an error saving your content. Please try again or use a different browser.');
-    }
-}
-
-// Get content from localStorage
-function getContent(id) {
-    // Try to get from the array first
-    let contentArray = [];
-    try {
-        contentArray = JSON.parse(localStorage.getItem('qr-share-content') || '[]');
-    } catch (e) {
-        console.error('Error parsing localStorage data:', e);
-        contentArray = [];
-    }
-    
-    const now = new Date();
-    
-    // Find the content by ID
-    let content = contentArray.find(item => item.id === id);
-    
-    // If not found in the array, try the direct item
-    if (!content) {
-        try {
-            const directItem = localStorage.getItem(`qr-share-item-${id}`);
-            if (directItem) {
-                content = JSON.parse(directItem);
-            }
-        } catch (e) {
-            console.error('Error getting direct item:', e);
-        }
-    }
-    
-    // Check URL parameters for encoded content (fallback for text content)
-    if (!content) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const textContent = urlParams.get('text');
-        
-        if (textContent && id) {
-            // Create a synthetic content object from URL parameters
-            content = {
-                id: id,
-                type: 'text',
-                data: decodeURIComponent(textContent),
-                created: new Date().toISOString(),
-                expires: null
-            };
-        }
-    }
-    
-    // Check if it exists and hasn't expired
-    if (content && (!content.expires || new Date(content.expires) > now)) {
-        return content;
-    }
-    
-    return null;
-}
-
-// Get the share URL for a content ID
-function getShareUrl(id) {
-    // Get the base URL (domain and path)
-    const baseUrl = window.location.href.split('?')[0];
-    // Return the URL with the id parameter
-    return `${baseUrl}?id=${id}`;
+    return Math.random().toString(36).substring(2, 12) + Date.now().toString(36).substring(2, 7);
 }
 
 // Format a date for display
